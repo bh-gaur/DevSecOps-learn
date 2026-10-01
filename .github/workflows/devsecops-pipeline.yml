@@ -1,0 +1,212 @@
+name: DevSecOps Pipeline
+
+# ==============================================================================
+# Triggers: Shift-Left Security on Pull Requests, Main Branch Pushes, & Manual Runs
+# ==============================================================================
+on:
+  push:
+    branches: [main]
+    paths:
+      - "demo-app/**"
+      - "k8s/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "demo-app/**"
+      - "k8s/**"
+      - ".github/workflows/**"
+  workflow_dispatch: # Allows manual trigger from GitHub Actions UI
+
+# ==============================================================================
+# Best Practice: Concurrency Control
+# Automatically cancels in-progress runs on the same branch/PR to save CI minutes
+# ==============================================================================
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ==============================================================================
+# Best Practice: Principle of Least Privilege (Top-Level Permissions)
+# Default to read-only for all jobs; grant write permissions only where required
+# ==============================================================================
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+  IMAGE_NAME: "demo-app"
+
+jobs:
+  # ============================================================================
+  # Stage 1: Secret Scanning (Fail-Fast: Block exposed credentials before building)
+  # ============================================================================
+  secret_scan:
+    name: Secret Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history needed for detecting leaks across commits
+
+      - name: Run Gitleaks Secret Detector
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_SUMMARY: true
+
+  # ============================================================================
+  # Stage 2: SAST (Static Application Security Testing) & Code Quality / Unit Tests
+  # ============================================================================
+  sast_and_test:
+    name: SAST, Linting & Unit Testing
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # Required for uploading SARIF to GitHub Security tab
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip" # Speeds up builds by caching pip wheels
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r demo-app/requirements.txt
+          pip install -r .github/requirements.txt ruff bandit[sarif]
+
+      - name: Code Quality & Linting (Ruff)
+        run: |
+          ruff check demo-app/
+
+      - name: SAST Security Scan (Bandit)
+        run: |
+          # Scan application code and output results to SARIF format for GitHub CodeQL
+          bandit -r demo-app/ -f sarif -o bandit-results.sarif --exit-zero
+
+      - name: Upload Bandit SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: bandit-results.sarif
+          category: bandit-sast
+
+      - name: Run Unit & Security Tests (Pytest)
+        working-directory: demo-app
+        run: |
+          pytest --maxfail=1 --disable-warnings -v
+
+  # ============================================================================
+  # Stage 3: SCA (Software Composition Analysis) - Dependency Vulnerability Scan
+  # ============================================================================
+  sca_scan:
+    name: SCA Dependency Scan (pip-audit & Trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run pip-audit (Python Dependency Vulnerability Scanner)
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          pip-audit -r demo-app/requirements.txt
+
+      - name: Run Trivy Filesystem Scan (SCA & Misconfigurations)
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          scan-type: "fs"
+          scan-ref: "demo-app"
+          format: "sarif"
+          output: "trivy-fs-results.sarif"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Trivy FS SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs-results.sarif
+          category: trivy-filesystem
+
+  # ============================================================================
+  # Stage 4: IaC (Infrastructure as Code) Security Scanning (Kubernetes / Configs)
+  # ============================================================================
+  iac_scan:
+    name: IaC Security Scan (Kubernetes Manifests)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Scan Kubernetes Manifests for Misconfigurations (Trivy Config)
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          scan-type: "config"
+          scan-ref: "k8s"
+          format: "sarif"
+          output: "trivy-iac-results.sarif"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Trivy IaC SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-iac-results.sarif
+          category: trivy-iac
+
+  # ============================================================================
+  # Stage 5: Container Image Build & Vulnerability Scanning
+  # ============================================================================
+  container_security:
+    name: Container Security & Image Scan
+    runs-on: ubuntu-latest
+    needs: [sast_and_test, sca_scan, iac_scan] # Build only after code passes quality gates
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image locally
+        uses: docker/build-push-action@v6
+        with:
+          context: demo-app
+          file: demo-app/Dockerfile
+          push: false # Do not push to registry until security scan passes
+          load: true # Load image into local Docker daemon for scanning
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Scan Container Image with Trivy (OS & Package CVEs)
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: "sarif"
+          output: "trivy-image-results.sarif"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Container Scan SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-container-image

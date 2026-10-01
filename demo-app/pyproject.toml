@@ -1,0 +1,20 @@
+[project]
+name = "demo-app"
+version = "0.1.0"
+description = "My Python application"
+requires-python = ">=3.11"
+
+dependencies = [
+    "fastapi[standard]>=0.116",
+    "uvicorn>=0.35",
+    "pydantic>=2.11",
+    # Direct security override for transitive dependency vulnerability
+    "msgpack>=1.2.1",
+]
+
+[build-system]
+requires = [
+    "setuptools>=78.1.1",
+    "wheel>=0.46.2",
+]
+build-backend = "setuptools.build_meta"
