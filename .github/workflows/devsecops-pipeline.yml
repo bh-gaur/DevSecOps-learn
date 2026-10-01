@@ -126,7 +126,7 @@ jobs:
           pip-audit -r demo-app/requirements.txt
 
       - name: Run Trivy Filesystem Scan (SCA & Misconfigurations)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: "fs"
           scan-ref: "demo-app"
@@ -155,7 +155,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Scan Kubernetes Manifests for Misconfigurations (Trivy Config)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: "config"
           scan-ref: "k8s"
