@@ -9,12 +9,14 @@ on:
     paths:
       - "demo-app/**"
       - "k8s/**"
+      - "scripts/**"
       - ".github/workflows/**"
   pull_request:
     branches: [main]
     paths:
       - "demo-app/**"
       - "k8s/**"
+      - "scripts/**"
       - ".github/workflows/**"
   workflow_dispatch: # Allows manual trigger from GitHub Actions UI
 
