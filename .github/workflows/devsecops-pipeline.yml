@@ -79,7 +79,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r demo-app/requirements.txt
-          pip install -r .github/requirements.txt ruff bandit[sarif]
+          pip install -r .github/requirements.txt ruff bandit bandit-sarif-formatter
 
       - name: Code Quality & Linting (Ruff)
         run: |
@@ -91,8 +91,8 @@ jobs:
           bandit -r demo-app/ -f sarif -o bandit-results.sarif --exit-zero
 
       - name: Upload Bandit SARIF to GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('bandit-results.sarif') != ''
         with:
           sarif_file: bandit-results.sarif
           category: bandit-sast
@@ -135,8 +135,8 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy FS SARIF to GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy-fs-results.sarif') != ''
         with:
           sarif_file: trivy-fs-results.sarif
           category: trivy-filesystem
@@ -164,8 +164,8 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy IaC SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy-iac-results.sarif') != ''
         with:
           sarif_file: trivy-iac-results.sarif
           category: trivy-iac
@@ -205,8 +205,8 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Container Scan SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy-image-results.sarif') != ''
         with:
           sarif_file: trivy-image-results.sarif
           category: trivy-container-image
