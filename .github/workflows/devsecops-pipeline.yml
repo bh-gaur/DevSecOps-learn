@@ -57,6 +57,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_SUMMARY: true
+          GITLEAKS_LOG_OPTS: "--all"
 
   # ============================================================================
   # Stage 2: SAST (Static Application Security Testing) & Code Quality / Unit Tests

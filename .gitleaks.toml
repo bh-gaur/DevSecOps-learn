@@ -1,4 +1,5 @@
-# Gitleaks Configuration
+title = "DevSecOps Gitleaks Config"
+
 # Enforce using Gitleaks' full built-in default ruleset (150+ secret detectors)
 [extend]
 useDefault = true
