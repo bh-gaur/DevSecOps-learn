@@ -90,8 +90,8 @@ jobs:
 
       - name: SAST Security Scan (Bandit)
         run: |
-          # Scan application code and output results to SARIF format for GitHub CodeQL
-          bandit -r demo-app/ -f sarif -o bandit-results.sarif --exit-zero
+          # Scan application code using .bandit config and excluding tests directory
+          bandit -r demo-app/ -c .bandit -x demo-app/tests -f sarif -o bandit-results.sarif --exit-zero
 
       - name: Upload Bandit SARIF to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v4

@@ -4,6 +4,8 @@
 
 # Directories to exclude from security scanning
 exclude_dirs:
+  - 'tests'
+  - 'demo-app/tests'
   - '/tests'
   - '/.venv'
   - '/venv'
