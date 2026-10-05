@@ -1,0 +1,16 @@
+# Trivy Configuration for DevSecOps Scanning
+severity:
+  - HIGH
+  - CRITICAL
+
+exit-code: 1    # Fail pipeline if violations are found
+ignore-unfixed: true  # Only fail on vulnerabilities where a patch/fix actually exists
+
+scan:
+  scanners:
+    - vuln
+    - config
+    - secret
+
+format: table
+output: trivy-report.txt

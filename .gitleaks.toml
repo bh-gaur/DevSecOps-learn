@@ -1,0 +1,12 @@
+title = "DevSecOps Gitleaks Config"
+
+# Enforce using Gitleaks' full built-in default ruleset (150+ secret detectors)
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist for build artifacts"
+paths = [
+  '''^\.git/''',
+  '''^\.venv/''',
+]

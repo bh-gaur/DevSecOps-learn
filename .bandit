@@ -1,0 +1,16 @@
+# ==============================================================================
+# Bandit SAST Configuration File
+# ==============================================================================
+
+# Directories to exclude from security scanning
+exclude_dirs:
+  - '/tests'
+  - '/.venv'
+  - '/venv'
+  - '/__pycache__'
+  - '/build'
+  - '/dist'
+
+# Specific vulnerability checks to skip (false-positive suppression)
+skips:
+  - 'B101' # Skip assert statements check
