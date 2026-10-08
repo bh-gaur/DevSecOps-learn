@@ -123,6 +123,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+      # Fail the pipeline if SonarCloud Quality Gate fails (e.g. security flaws, low coverage)
+      - name: SonarCloud Quality Gate Check
+        uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: "https://sonarcloud.io"
+
   # ============================================================================
   # Stage 3: SCA (Software Composition Analysis) - Dependency Vulnerability Scan
   # ============================================================================
